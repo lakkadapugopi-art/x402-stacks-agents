@@ -1,0 +1,4 @@
+# Copy to .dev.vars for local development. Never commit .dev.vars.
+PAY_TO=__RECIPIENT__
+# Optional Hiro API key for higher rate limits.
+HIRO_API_KEY=
