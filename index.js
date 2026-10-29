@@ -7,4 +7,7 @@ module.exports = {
   ...require('./lib/project'),
   ...require('./lib/config'),
   ...require('./lib/errors'),
+  ...require('./lib/validation'),
+  ...require('./lib/receipt'),
+  ...require('./lib/payments'),
 };

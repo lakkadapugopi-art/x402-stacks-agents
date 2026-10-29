@@ -1,5 +1,7 @@
 # x402-stacks-agents
 
+[https://github.com/lakkadapugopi-art/x402-stacks-agents](https://github.com/lakkadapugopi-art/x402-stacks-agents)
+
 Zero-dependency Stacks x402 v2 payment tools for Node.js and Cloudflare
 Agents. Includes exact payment requirements, HTTP 402 responses, payment
 payload encoding, confirmed STX/SIP-010 transfer verification, real c32check
@@ -17,6 +19,11 @@ stdio server.
 - Confirmation count, transaction status, recipient, amount, and contract checks
 - Official c32check address generation and validation; secp256k1 wallet creation
 - Cloudflare Agents and wrangler scaffolding with a paid durable-object route
+- Multiple payment requirements per request (token preference order)
+- SIP-010 memo extraction and optional memo matching
+- Pending transaction polling (`--wait`) with bounded timeouts
+- Accounting receipts (JSON or Markdown) and a local payments ledger
+- TypeScript type declarations for the main entry and every subpath
 - Eight MCP tools with closed JSON Schemas and JSON-RPC 2.0 notifications
 - Entire test suite runs offline
 
@@ -54,12 +61,16 @@ preserved.
 
 ### Configuration
 
+    x402-stacks-agents config init --root my-agent
     x402-stacks-agents config show --root my-agent
     x402-stacks-agents config set recipient ST000000000000000000002AMW42H --root my-agent
     x402-stacks-agents config set token sBTC --root my-agent
     x402-stacks-agents config set amount 100 --root my-agent
 
-Stored settings are `network`, `recipient`, `token`, `amount`, `apiUrl`,
+`config init` writes the default configuration and prints the next steps
+(setting a recipient, setting an amount, and running `verify`); it refuses to
+overwrite an existing configuration unless `--force` is supplied. Stored
+settings are `network`, `recipient`, `token`, `amount`, `apiUrl`,
 `maxTimeoutSeconds`, and `minConfirmations`. Amounts are decimal atomic units:
 sats for sBTC, microSTX for STX, and micro-USDCx for USDCx.
 
@@ -84,6 +95,20 @@ omits it. Protect generated keys and never commit them.
     x402-stacks-agents payment verify BASE64_PAYMENT \
       --transaction ./transaction.json --root my-agent
     x402-stacks-agents transaction verify 0xTRANSACTION_ID --root my-agent
+    x402-stacks-agents transaction verify 0xTRANSACTION_ID --wait \
+      --wait-timeout 120000 --poll-interval 5000 --root my-agent
+    x402-stacks-agents payment verify BASE64_PAYMENT \
+      --transaction ./transaction.json --receipt receipt.md --record --root my-agent
+
+`--wait` polls a pending transaction until it confirms or the bounded timeout
+expires (`--wait-timeout` in milliseconds, `--poll-interval` between queries).
+`--memo HEX` additionally requires the SIP-010 transfer memo to match. On a
+valid result, `--receipt FILE` writes an accounting receipt (JSON, or Markdown
+for `.md` files; bare `--receipt` prints the receipt instead of the result),
+and `--record` appends the verification to the local payments ledger
+(`.x402-stacks/payments.jsonl`, owner-only). `payment-required --tokens`
+accepts a comma-separated token preference list and emits one payment
+requirement per token.
 
 Without `--transaction FILE`, transaction verification queries the configured
 Hiro API. The JSON fixture form is useful for deterministic testing and uses
@@ -125,6 +150,39 @@ header. `decodePaymentRequired` and `encodePaymentRequired` are also exported.
 fields. A 32-byte transaction id is looked up or checked against an injected
 transaction object. A raw signed transaction requires `facilitator` or
 `facilitatorUrl`.
+
+### Multiple payment requirements
+
+    const required = gateway.createPaymentRequired({
+      resourceUrl: 'https://example.com/premium',
+      tokens: ['USDCx', 'sBTC', 'STX']
+    });
+
+`accepts` entries or a `tokens` preference list produce one exact payment
+requirement per entry (up to eight). Each entry may override `token`, `amount`,
+`network`, `recipient`, or `maxTimeoutSeconds` over the shared base options.
+
+### Memo matching and pending transactions
+
+    const result = await gateway.verifyTransaction({
+      txid, memo: '72656631', wait: true, waitTimeoutMs: 120000, pollIntervalMs: 5000
+    });
+
+`memo` requires the SIP-010 transfer memo (or STX `token_transfer` memo) to
+match the given hex value. `wait` polls the configured API while a transaction
+is pending, bounded by `waitTimeoutMs` and `pollIntervalMs`.
+
+### Receipts and payments ledger
+
+    const { buildPaymentReceipt, formatReceiptMarkdown, recordPayment } = require('x402-stacks-agents');
+    const receipt = buildPaymentReceipt(result);            // JSON receipt object
+    const markdown = formatReceiptMarkdown(receipt);        // Markdown rendering
+    recordPayment(process.cwd(), result);                   // append to .x402-stacks/payments.jsonl
+
+Receipts are built only from valid verification results and are written to the
+local filesystem only. The payments ledger records each successful
+verification once per transaction id and rejects duplicates, supporting
+accounting and replay tracking.
 
 ### Verify a transfer directly
 
@@ -172,7 +230,11 @@ are rejected by the default template. The template stores no wallet private key.
 The server speaks newline-delimited JSON-RPC 2.0 over stdio and reserves
 stdout for protocol messages. It supports MCP 2025-06-18, 2025-03-26, and
 2024-11-05. Notifications receive no response. Latest-protocol batch requests
-are rejected; older negotiated versions receive batch arrays.
+are rejected; older negotiated versions receive batch arrays. `mcp-start
+[--root DIR]` sets the default directory used by `x402_project_init` when no
+`directory` argument is supplied. The payment requirements tool accepts an
+optional `tokens` preference list, and the verification tools accept an
+optional `memo`.
 
 ### Tools
 
@@ -194,13 +256,30 @@ tool results with `isError: true`. Wallet private keys are omitted unless
 ## Environment and network
 
 The CLI configuration defaults to Hiro's public API for the selected network.
-Programmatic callers can supply `apiUrl`, `hiroApiKey` (or its backward-
-compatible alias `apiKey`), `timeoutMs`, `fetchImpl`, or an offline
-`transaction` object. Hiro keys are sent only to Hiro API endpoints. A
-facilitator receives a key only when `facilitatorApiKey` is explicitly set;
-Hiro keys are never forwarded to it. URLs containing credentials are rejected.
-API keys are sent only in the intended service's `x-api-key` header, never in
-URLs.
+Programmatic callers can supply `apiUrl`, `timeoutMs`, `fetchImpl`, or an
+offline `transaction` object. URLs containing credentials are rejected.
+
+### Runtime keys
+
+| Option | Scope | Sent to |
+|---|---|---|
+| `hiroApiKey` (alias `apiKey`) | Hiro Stacks API requests | Hiro endpoints only, `x-api-key` header |
+| `facilitatorUrl` | x402 facilitator base URL for verify/settle | facilitator endpoints |
+| `facilitatorApiKey` | facilitator requests | facilitator endpoints only, `x-api-key` header |
+| `timeoutMs` | every HTTP request (default 10000) | — |
+| `fetchImpl` | injected Fetch implementation for tests | — |
+
+Hiro keys are sent only to Hiro API endpoints. A facilitator receives a key
+only when `facilitatorApiKey` is explicitly set; Hiro keys are never forwarded
+to it, and facilitator keys never reach Hiro. API keys are sent only in the
+intended service's `x-api-key` header, never in URLs.
+
+## TypeScript
+
+Type declarations ship with the package (`index.d.ts` plus per-module
+declarations for the `x402-stacks-agents/stacks`, `/x402`, `/project`,
+`/errors`, and `/validation` subpaths) and are wired through the `exports`
+map's `types` condition. No `@types` package is required.
 
 ## Security notes
 

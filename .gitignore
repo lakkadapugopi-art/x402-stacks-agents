@@ -1,0 +1,4 @@
+node_modules/
+*.tgz
+ledger.jsonl
+npm-debug.log*

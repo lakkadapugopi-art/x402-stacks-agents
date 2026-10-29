@@ -19,7 +19,8 @@ const INITIALIZE_SCHEMA = {
   },
 };
 
-function startServer() {
+function startServer(options = {}) {
+  const root = options.root || process.cwd();
   let protocolVersion = null;
   let initialized = false;
   let buffer = '';
@@ -51,7 +52,7 @@ function startServer() {
     const args = params.arguments === undefined ? {} : params.arguments;
     validateSchema(args, tool.inputSchema, 'params.arguments');
     try {
-      const result = await tool.handler(args);
+      const result = await tool.handler(args, { root });
       emit(response(id, { content: [{ type: 'text', text: JSON.stringify(result) }] }));
     } catch (error) {
       emit(response(id, { isError: true, content: [{ type: 'text', text: `${error.code || 'DOMAIN_ERROR'}: ${error.message}` }] }));

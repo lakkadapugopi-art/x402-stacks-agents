@@ -22,7 +22,7 @@ function run(args) {
 
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'x402-cli-test-'));
 try {
-  check('version command', () => assert.equal(run(['--version']), '0.1.0'));
+  check('version command', () => assert.equal(run(['--version']), require('../package.json').version));
   check('help lists every command family', () => {
     const help = run(['--help']);
     for (const command of ['init', 'config', 'verify', 'payment-required', 'transaction', 'address', 'mcp-start']) assert.ok(help.includes(command));

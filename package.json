@@ -1,17 +1,47 @@
 {
   "name": "x402-stacks-agents",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Zero-dependency Stacks x402 payment tools, Cloudflare Agents scaffolding, CLI, and MCP server",
   "license": "MIT",
+  "author": "lakkadapugopi-art",
+  "homepage": "https://github.com/lakkadapugopi-art/x402-stacks-agents#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lakkadapugopi-art/x402-stacks-agents.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lakkadapugopi-art/x402-stacks-agents/issues"
+  },
   "main": "./index.js",
+  "types": "./index.d.ts",
   "bin": {
     "x402-stacks-agents": "./bin/cli.js"
   },
   "exports": {
-    ".": "./index.js",
-    "./stacks": "./lib/stacks.js",
-    "./x402": "./lib/x402.js",
-    "./project": "./lib/project.js",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./stacks": {
+      "types": "./lib/stacks.d.ts",
+      "default": "./lib/stacks.js"
+    },
+    "./x402": {
+      "types": "./lib/x402.d.ts",
+      "default": "./lib/x402.js"
+    },
+    "./project": {
+      "types": "./lib/project.d.ts",
+      "default": "./lib/project.js"
+    },
+    "./errors": {
+      "types": "./lib/errors.d.ts",
+      "default": "./lib/errors.js"
+    },
+    "./validation": {
+      "types": "./lib/validation.d.ts",
+      "default": "./lib/validation.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -19,6 +49,7 @@
     "lib/",
     "templates/",
     "index.js",
+    "index.d.ts",
     "mcp-server.js",
     "README.md",
     "LICENSE"
