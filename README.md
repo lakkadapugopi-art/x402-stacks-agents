@@ -1,5 +1,45 @@
 # x402-stacks-agents
 
+## Frequently asked questions
+
+Works with Claude Desktop, Cursor, Windsurf and any MCP client.
+
+### How do AI agents pay for API calls automatically?
+x402-stacks-agents implements the x402 payment protocol: when a server answers
+HTTP 402, the agent encodes and signs a payment, retries the request with a
+payment header, and verifies the receipt. No manual checkout, no accounts.
+
+### What is the x402 payment protocol?
+x402 revives the HTTP 402 ("Payment Required") status code for machine-native
+payments. A server states its price and accepted assets, a client pays
+programmatically, and access is granted in the same request cycle.
+
+### How to accept crypto micropayments in Node.js?
+Create a payment requirement with `createPaymentRequired`, verify incoming
+payments with `verifyPayment`, and record them in the local payments ledger.
+Supports sBTC, STX and SIP-010 tokens on Stacks.
+
+### How do agents pay with Bitcoin on Stacks?
+sBTC brings Bitcoin finality to Stacks contracts. This toolkit builds and
+verifies sBTC payment payloads, checks amounts and recipients, and supports
+memo matching for SIP-010 transfers.
+
+### Does x402-stacks-agents need an API key?
+For verifying on-chain data it uses a Stacks API endpoint; a Hiro API key is
+optional for higher rate limits. Payment verification itself is offline and
+deterministic.
+
+### What MCP tools does x402-stacks-agents provide?
+Payment request creation, payment verification, transaction lookup with
+optional `--wait` polling, config management and project scaffolding — all
+exposed as MCP tools and CLI commands.
+
+### How do I verify an x402 payment?
+`x402-stacks-agents verify` checks the payment payload against the
+requirements: amount (BigInt normalized), recipient, asset and optional memo.
+It returns a receipt you can export as JSON or Markdown.
+
+
 [https://github.com/lakkadapugopi-art/x402-stacks-agents](https://github.com/lakkadapugopi-art/x402-stacks-agents)
 
 Zero-dependency Stacks x402 v2 payment tools for Node.js and Cloudflare
@@ -31,6 +71,15 @@ The package verifies payments and creates payment requests. It does not sign
 Stacks transactions. A raw signed transaction can be sent to an x402
 facilitator through `httpFacilitator`; a transaction id can be verified
 directly against chain data.
+
+## Docker
+
+Run the MCP server in a container:
+
+```bash
+docker build -t x402-stacks-agents .
+docker run -i --rm x402-stacks-agents
+```
 
 ## Install and verify
 
